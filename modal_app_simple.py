@@ -102,11 +102,12 @@ class DeepSeekModel:
             download_dir="/cache",
             tensor_parallel_size=1,
             gpu_memory_utilization=0.85,
-            max_model_len=3072,
+            max_model_len=2048,
             trust_remote_code=True,
-            enforce_eager=False,
+            enforce_eager=True,
             # dtype="auto",
             dtype="half",
+            enable_flashinfer=False,
         )
 
         load_time = time.time() - start_time
