@@ -5,19 +5,23 @@ Tests API functionality, security, and performance
 """
 import requests
 import time
+import os
 import json
 import hmac
 import hashlib
 from typing import Dict
 import sys
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 # Update these with your actual values
-API_URL = "https://your-workspace--arthasetu-brain-fastapi-app.modal.run"
-API_KEY = "your-api-key-here"
-SIGNING_SECRET = "your-signing-secret-here"  # Optional
+API_URL = os.getenv("API_URL")
+API_KEY = os.getenv("API_KEY")
+SIGNING_SECRET = os.getenv("SIGNING_SECRET")
 
 # ============================================================================
 # TEST UTILITIES

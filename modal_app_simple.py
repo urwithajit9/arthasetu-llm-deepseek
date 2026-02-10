@@ -197,6 +197,7 @@ class DeepSeekModel:
 @app.function(
     min_containers=0,
     scaledown_window=120,
+    secrets=[modal.Secret.from_name("arthasetu-api")],
 )
 @modal.asgi_app()
 def fastapi_app():
@@ -313,27 +314,42 @@ def fastapi_app():
         except Exception as e:
             raise HTTPException(500, f"Generation failed: {str(e)}")
 
+    # @web_app.get("/health")
+    # async def health():
+    #     """Health check"""
+    #     try:
+    #         model = DeepSeekModel()
+    #         health_data = model.health_check.remote()
+    #         return {
+    #             "status": "healthy",
+    #             "version": "1.0.0-budget",
+    #             "model_info": health_data,
+    #             "note": "Budget mode: <$30/month target, cold starts ~20-30s",
+    #         }
+    #     except Exception as e:
+    #         return JSONResponse(
+    #             503,
+    #             {
+    #                 "status": "unhealthy",
+    #                 "error": str(e),
+    #                 "timestamp": datetime.utcnow().isoformat() + "Z",
+    #             },
+    #         )
+
     @web_app.get("/health")
     async def health():
-        """Health check"""
-        try:
-            model = DeepSeekModel()
-            health_data = model.health_check.remote()
-            return {
-                "status": "healthy",
-                "version": "1.0.0-budget",
-                "model_info": health_data,
-                "note": "Budget mode: <$30/month target, cold starts ~20-30s",
-            }
-        except Exception as e:
-            return JSONResponse(
-                503,
-                {
-                    "status": "unhealthy",
-                    "error": str(e),
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                },
-            )
+        return {
+            "status": "ok",
+            "service": "arthasetu-brain",
+            "mode": "budget",
+            "cold_start_expected": True,
+        }
+
+
+    @web_app.get("/health/model")
+    async def model_health():
+        model = DeepSeekModel()
+        return model.health_check.remote()
 
     @web_app.get("/")
     async def root():
