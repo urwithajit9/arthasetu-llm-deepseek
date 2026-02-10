@@ -225,6 +225,7 @@ def fastapi_app():
         allow_origins=[
             "https://yourdomain.com",  # UPDATE THIS
             "http://localhost:8000",
+            "http://127.0.0.1:8000",
         ],
         allow_credentials=True,
         allow_methods=["POST", "GET"],
