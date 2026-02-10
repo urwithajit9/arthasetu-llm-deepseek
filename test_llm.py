@@ -155,7 +155,7 @@ def test_basic_generation():
                 "Content-Type": "application/json"
             },
             json=payload,
-            timeout=60
+            timeout=120
         )
         latency = time.time() - start
 
@@ -191,7 +191,7 @@ def test_with_context():
             f"{API_URL}/v1/generate",
             headers={"X-API-Key": API_KEY},
             json=payload,
-            timeout=60
+            timeout=120
         )
 
         if response.status_code == 200:
@@ -227,7 +227,7 @@ def test_parameter_variations():
                 f"{API_URL}/v1/generate",
                 headers={"X-API-Key": API_KEY},
                 json=payload,
-                timeout=60
+                timeout=120
             )
 
             if response.status_code == 200:
@@ -316,7 +316,7 @@ def test_performance():
                 f"{API_URL}/v1/generate",
                 headers={"X-API-Key": API_KEY},
                 json={"prompt": f"Test {i}", "max_tokens": 50},
-                timeout=60
+                timeout=120
             )
 
             if response.status_code == 200:

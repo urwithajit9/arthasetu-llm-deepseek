@@ -198,6 +198,7 @@ class DeepSeekModel:
     min_containers=0,
     scaledown_window=120,
     secrets=[modal.Secret.from_name("arthasetu-api")],
+    timeout=300,
 )
 @modal.asgi_app()
 def fastapi_app():
@@ -210,7 +211,7 @@ def fastapi_app():
     import time
 
     web_app = FastAPI(
-        title="ArthaSeetu Brain API (Budget)",
+        title="ArthaSeetu LLM API ",
         version="1.0.0",
         docs_url=None,
         redoc_url=None,
@@ -345,7 +346,6 @@ def fastapi_app():
             "cold_start_expected": True,
         }
 
-
     @web_app.get("/health/model")
     async def model_health():
         model = DeepSeekModel()
@@ -363,6 +363,7 @@ def fastapi_app():
             "endpoints": {
                 "generate": "POST /v1/generate",
                 "health": "GET /health",
+                "model_health": "GET /health/model",
             },
         }
 
