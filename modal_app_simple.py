@@ -1,6 +1,6 @@
 """
-ArthaSeetu Brain - Budget Edition (<$30/month)
-Optimized for minimal cost with Modal 1.0 API
+ArthaSeetu Brain - Budget Edition SIMPLIFIED (<$30/month)
+Minimal configuration, maximum compatibility
 """
 
 import modal
@@ -15,21 +15,14 @@ MODEL_ID = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 APP_NAME = "arthasetu-brain"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 
-# BUDGET OPTIMIZATION: <$30/month
-# T4 GPU: $0.40/hr vs L4: $0.60/hr vs A10G: $1.10/hr
-# No keep-warm: Save $288/month (accept 20-30s cold start)
-# Target: <75 hours/month usage = <$30/month
-
+# BUDGET: T4 GPU, no warm containers, aggressive scaledown
 GPU_CONFIG = "T4"  # $0.40/hr (cheapest)
-MIN_CONTAINERS = 0  # No warm containers (was keep_warm=1)
-SCALEDOWN_WINDOW = 60  # Scale down after 1 minute idle
-MAX_CONCURRENT = 10  # Reduced from 15
+REQUEST_TIMEOUT = 120  # 2 minutes
 
-# Request Configuration
-MAX_PROMPT_LENGTH = 2000  # Reduced from 4000
-MAX_CONTEXT_LENGTH = 4000  # Reduced from 8000
-MAX_TOKENS_OUTPUT = 1024  # Reduced from 2048
-REQUEST_TIMEOUT = 120  # 2 minutes (reduced from 3)
+# Request Limits
+MAX_PROMPT_LENGTH = 2000
+MAX_CONTEXT_LENGTH = 4000
+MAX_TOKENS_OUTPUT = 1024
 
 # ============================================================================
 # IMAGE DEFINITION
@@ -62,33 +55,32 @@ cache_vol = modal.Volume.from_name(
 )
 
 # ============================================================================
-# SECRETS MANAGEMENT
+# SECRETS
 # ============================================================================
 try:
     api_secret = modal.Secret.from_name("arthasetu-api")
 except Exception:
-    print("⚠️  Warning: arthasetu-api secret not found. API will be unsecured!")
+    print("⚠️  Warning: arthasetu-api secret not found")
     api_secret = None
 
 
 # ============================================================================
-# MODEL SERVER CLASS - MODAL 1.0 API
+# MODEL SERVER CLASS - SIMPLIFIED
 # ============================================================================
 @app.cls(
     gpu=GPU_CONFIG,
-    # Modal 1.0 API - Fixed deprecation warnings
-    scaledown_window=SCALEDOWN_WINDOW,  # Was: container_idle_timeout
-    min_containers=MIN_CONTAINERS,  # Was: keep_warm
     timeout=REQUEST_TIMEOUT,
     volumes={"/cache": cache_vol},
     secrets=[api_secret] if api_secret else [],
+    # Modal 1.0 API (no deprecated parameters)
+    min_containers=0,  # No warm containers (cold starts OK)
+    scaledown_window=60,  # Scale down after 1 minute
 )
 class DeepSeekModel:
     """
-    Budget-optimized model server:
+    Simplified budget model server:
     - T4 GPU ($0.40/hr)
-    - No warm containers (cold starts ~20-30s)
-    - Aggressive scaledown (1 minute)
+    - No warm containers
     - Target: <$30/month
     """
 
@@ -99,46 +91,39 @@ class DeepSeekModel:
         from vllm import LLM
         import time
 
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        )
+        logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
-        self.logger.info(f"🚀 Loading {MODEL_ID} on {GPU_CONFIG}")
+        self.logger.info(f"Loading {MODEL_ID} on {GPU_CONFIG}")
         start_time = time.time()
 
-        # vLLM Optimizations for T4
         self.llm = LLM(
             model=MODEL_ID,
             download_dir="/cache",
             tensor_parallel_size=1,
-            gpu_memory_utilization=0.85,  # Lower for T4
-            max_model_len=3072,  # Reduced for budget
+            gpu_memory_utilization=0.85,
+            max_model_len=3072,
             trust_remote_code=True,
             enforce_eager=False,
             dtype="auto",
         )
 
         load_time = time.time() - start_time
-        self.logger.info(f"✅ Model loaded in {load_time:.2f}s")
+        self.logger.info(f"Model loaded in {load_time:.2f}s")
 
-        # Metrics
         self.request_count = 0
-        self.total_tokens_generated = 0
         self.start_time = time.time()
 
     @modal.method()
-    @modal.concurrent()  # Modal 1.0 API - replaces allow_concurrent_inputs
     def generate(
         self,
         user_prompt: str,
         context: str = "",
         temperature: float = 0.6,
         top_p: float = 0.9,
-        max_tokens: int = 512,  # Lower default for budget
+        max_tokens: int = 512,
     ) -> Dict:
-        """Generate response with validation and metrics"""
+        """Generate AI response"""
         from vllm import SamplingParams
         import time
 
@@ -149,9 +134,9 @@ class DeepSeekModel:
         try:
             # Input validation
             if len(user_prompt) > MAX_PROMPT_LENGTH:
-                raise ValueError(f"Prompt exceeds {MAX_PROMPT_LENGTH} characters")
+                raise ValueError(f"Prompt too long (max {MAX_PROMPT_LENGTH} chars)")
             if len(context) > MAX_CONTEXT_LENGTH:
-                raise ValueError(f"Context exceeds {MAX_CONTEXT_LENGTH} characters")
+                raise ValueError(f"Context too long (max {MAX_CONTEXT_LENGTH} chars)")
 
             # Build prompt
             if context.strip():
@@ -161,7 +146,7 @@ class DeepSeekModel:
             else:
                 full_prompt = f"Question: {user_prompt}\n\nAnswer:"
 
-            # Sampling parameters with safety limits
+            # Generate
             sampling_params = SamplingParams(
                 temperature=max(0.1, min(temperature, 1.0)),
                 top_p=max(0.1, min(top_p, 1.0)),
@@ -170,18 +155,13 @@ class DeepSeekModel:
                 stop=["\n\nQuestion:", "\n\nContext:"],
             )
 
-            # Generate
             results = self.llm.generate([full_prompt], sampling_params)
             output_text = results[0].outputs[0].text.strip()
             tokens_generated = len(results[0].outputs[0].token_ids)
-
-            # Update metrics
-            self.total_tokens_generated += tokens_generated
             latency = time.time() - start_time
 
             self.logger.info(
-                f"✓ {request_id} | Tokens: {tokens_generated} | "
-                f"Latency: {latency:.2f}s | Total requests: {self.request_count}"
+                f"{request_id} | Tokens: {tokens_generated} | Latency: {latency:.2f}s"
             )
 
             return {
@@ -193,12 +173,12 @@ class DeepSeekModel:
             }
 
         except Exception as e:
-            self.logger.error(f"✗ {request_id} | Error: {str(e)}")
+            self.logger.error(f"{request_id} | Error: {str(e)}")
             raise
 
     @modal.method()
     def health_check(self) -> Dict:
-        """Health and metrics endpoint"""
+        """Health check"""
         import time
 
         uptime = time.time() - self.start_time
@@ -206,65 +186,48 @@ class DeepSeekModel:
             "status": "healthy",
             "model": MODEL_ID,
             "gpu": GPU_CONFIG,
-            "budget_mode": "enabled",
             "uptime_seconds": round(uptime, 2),
             "requests_processed": self.request_count,
-            "total_tokens_generated": self.total_tokens_generated,
-            "avg_tokens_per_request": (
-                round(self.total_tokens_generated / self.request_count, 2)
-                if self.request_count > 0
-                else 0
-            ),
         }
 
 
 # ============================================================================
-# FASTAPI WEB ENDPOINT - IMPORTS INSIDE FUNCTION
+# FASTAPI WEB ENDPOINT
 # ============================================================================
 @app.function(
-    min_containers=0,  # No warm containers for web endpoint
-    scaledown_window=120,  # 2 minutes
+    min_containers=0,
+    scaledown_window=120,
 )
 @modal.asgi_app()
 def fastapi_app():
-    """
-    Deploy FastAPI app
-    Note: All imports inside function to avoid GitHub Actions errors
-    """
-    # Import inside function to avoid module not found errors
-    from fastapi import FastAPI, HTTPException, Header, Request, Depends
+    """FastAPI app with all imports inside function"""
+    from fastapi import FastAPI, HTTPException, Header, Depends
     from fastapi.responses import JSONResponse
     from fastapi.middleware.cors import CORSMiddleware
     from pydantic import BaseModel, Field, field_validator
     import secrets
     import time
-    import hashlib
-    import hmac
 
     web_app = FastAPI(
-        title="ArthaSeetu Brain API (Budget Edition)",
+        title="ArthaSeetu Brain API (Budget)",
         version="1.0.0",
         docs_url=None,
         redoc_url=None,
     )
 
-    # CORS Configuration
+    # CORS
     web_app.add_middleware(
         CORSMiddleware,
         allow_origins=[
-            "https://yourdomain.com",
-            "https://www.yourdomain.com",
+            "https://yourdomain.com",  # UPDATE THIS
             "http://localhost:8000",
         ],
         allow_credentials=True,
         allow_methods=["POST", "GET"],
         allow_headers=["*"],
-        max_age=3600,
     )
 
-    # ========================================================================
-    # REQUEST/RESPONSE MODELS
-    # ========================================================================
+    # Request/Response Models
     class GenerateRequest(BaseModel):
         prompt: str = Field(..., min_length=1, max_length=MAX_PROMPT_LENGTH)
         context: str = Field(default="", max_length=MAX_CONTEXT_LENGTH)
@@ -284,85 +247,51 @@ def fastapi_app():
         request_id: str
         timestamp: str
 
-    class ErrorResponse(BaseModel):
-        error: str
-        detail: Optional[str] = None
-        timestamp: str
-
-    # ========================================================================
-    # SECURITY
-    # ========================================================================
+    # Simple rate limiter
     class RateLimiter:
-        """Simple in-memory rate limiter"""
-
-        def __init__(self, requests_per_minute: int = 30):  # Reduced from 60
-            self.requests_per_minute = requests_per_minute
+        def __init__(self, rpm: int = 30):
+            self.rpm = rpm
             self.requests = {}
 
-        def check_rate_limit(self, client_id: str) -> bool:
-            """Returns True if rate limit exceeded"""
+        def check(self, client_id: str) -> bool:
             now = time.time()
             minute_ago = now - 60
 
             if client_id in self.requests:
                 self.requests[client_id] = [
-                    req_time
-                    for req_time in self.requests[client_id]
-                    if req_time > minute_ago
+                    t for t in self.requests[client_id] if t > minute_ago
                 ]
             else:
                 self.requests[client_id] = []
 
-            if len(self.requests[client_id]) >= self.requests_per_minute:
+            if len(self.requests[client_id]) >= self.rpm:
                 return True
 
             self.requests[client_id].append(now)
             return False
 
-    rate_limiter = RateLimiter(requests_per_minute=30)
+    rate_limiter = RateLimiter(rpm=30)
 
+    # API key verification
     def verify_api_key(x_api_key: str = Header(...)) -> str:
-        """Verify API key from header"""
-        expected_key = os.getenv("API_KEY")
-
-        if not expected_key:
+        expected = os.getenv("API_KEY")
+        if not expected:
             return "dev"
-
-        if not secrets.compare_digest(x_api_key, expected_key):
+        if not secrets.compare_digest(x_api_key, expected):
             raise HTTPException(status_code=401, detail="Invalid API key")
-
         return x_api_key
 
-    # ========================================================================
-    # API ENDPOINTS
-    # ========================================================================
-    @web_app.post(
-        "/v1/generate",
-        response_model=GenerateResponse,
-        responses={
-            401: {"model": ErrorResponse},
-            429: {"model": ErrorResponse},
-            500: {"model": ErrorResponse},
-        },
-    )
-    async def generate_endpoint(
-        request: Request,
+    # Endpoints
+    @web_app.post("/v1/generate", response_model=GenerateResponse)
+    async def generate(
         payload: GenerateRequest,
         api_key: str = Depends(verify_api_key),
     ):
-        """
-        Generate AI response (Budget Edition)
-
-        Note: Cold start ~20-30s on first request after idle
-        """
+        """Generate AI response (cold start ~20-30s first time)"""
         try:
-            # Rate limiting
-            if rate_limiter.check_rate_limit(api_key):
-                raise HTTPException(
-                    status_code=429, detail="Rate limit exceeded (30 requests/minute)"
-                )
+            if rate_limiter.check(api_key):
+                raise HTTPException(429, "Rate limit: 30 req/min")
 
-            # Generate response
             model = DeepSeekModel()
             result = model.generate.remote(
                 user_prompt=payload.prompt,
@@ -379,28 +308,27 @@ def fastapi_app():
                 request_id=result["request_id"],
                 timestamp=result["timestamp"],
             )
-
         except HTTPException:
             raise
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
+            raise HTTPException(500, f"Generation failed: {str(e)}")
 
     @web_app.get("/health")
-    async def health_endpoint():
-        """Public health check endpoint"""
+    async def health():
+        """Health check"""
         try:
             model = DeepSeekModel()
-            health = model.health_check.remote()
+            health_data = model.health_check.remote()
             return {
                 "status": "healthy",
-                "api_version": "1.0.0-budget",
-                "model_info": health,
-                "note": "Budget mode: cold starts ~20-30s, <$30/month target",
+                "version": "1.0.0-budget",
+                "model_info": health_data,
+                "note": "Budget mode: <$30/month target, cold starts ~20-30s",
             }
         except Exception as e:
             return JSONResponse(
-                status_code=503,
-                content={
+                503,
+                {
                     "status": "unhealthy",
                     "error": str(e),
                     "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -409,18 +337,17 @@ def fastapi_app():
 
     @web_app.get("/")
     async def root():
-        """Root endpoint"""
+        """API info"""
         return {
-            "service": "ArthaSeetu Brain API (Budget Edition)",
+            "service": "ArthaSeetu Brain (Budget)",
             "version": "1.0.0",
             "gpu": GPU_CONFIG,
-            "cost_target": "<$30/month",
-            "cold_start": "~20-30s after idle",
+            "cost": "<$30/month",
+            "cold_start": "~20-30s",
             "endpoints": {
                 "generate": "POST /v1/generate",
                 "health": "GET /health",
             },
-            "authentication": "Required: X-API-Key header",
         }
 
     return web_app

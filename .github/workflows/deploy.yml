@@ -46,7 +46,20 @@ jobs:
 
       - name: Syntax Check
         run: |
-          python -m py_compile modal_app.py
+          # Check which Modal app file exists
+          if [ -f "modal_app.py" ]; then
+            echo "✓ Checking modal_app.py"
+            python -m py_compile modal_app.py
+          elif [ -f "modal_app_simple.py" ]; then
+            echo "✓ Checking modal_app_simple.py"
+            python -m py_compile modal_app_simple.py
+          elif [ -f "modal_app_budget.py" ]; then
+            echo "✓ Checking modal_app_budget.py"
+            python -m py_compile modal_app_budget.py
+          else
+            echo "❌ No Modal app file found!"
+            exit 1
+          fi
 
       - name: Check Modal Configuration
         run: |
@@ -101,8 +114,35 @@ jobs:
           echo "⏰ Deploy time: $DEPLOY_TIME"
           echo "💰 Target cost: <$30/month"
 
-          # Deploy with detailed output
-          modal deploy modal_app.py --env $ENVIRONMENT 2>&1 | tee deploy_output.txt
+          # Determine which file to deploy
+          if [ -f "modal_app.py" ]; then
+            DEPLOY_FILE="modal_app.py"
+          elif [ -f "modal_app_simple.py" ]; then
+            DEPLOY_FILE="modal_app_simple.py"
+          elif [ -f "modal_app_budget.py" ]; then
+            DEPLOY_FILE="modal_app_budget.py"
+          else
+            echo "❌ No Modal app file found!"
+            exit 1
+          fi
+
+          echo "📄 Deploying file: $DEPLOY_FILE"
+
+          # Deploy with detailed output and capture exit code
+          set +e  # Don't exit on error yet
+          modal deploy "$DEPLOY_FILE" --env $ENVIRONMENT 2>&1 | tee deploy_output.txt
+          DEPLOY_EXIT_CODE=${PIPESTATUS[0]}
+          set -e  # Re-enable exit on error
+
+          # Check if deployment succeeded
+          if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
+            echo "❌ Deployment failed with exit code $DEPLOY_EXIT_CODE"
+            echo "📋 Error output:"
+            cat deploy_output.txt | tail -50
+            exit 1
+          fi
+
+          echo "✅ Deployment succeeded"
 
           # Extract web URL if available
           WEB_URL=$(grep -oP 'https://[^\s]+modal\.run[^\s]*' deploy_output.txt | head -1 || echo "")
@@ -110,7 +150,9 @@ jobs:
             echo "web_url=$WEB_URL" >> $GITHUB_OUTPUT
             echo "✅ Deployed to: $WEB_URL"
           else
-            echo "⚠️  Web URL not found in output (check logs)"
+            echo "⚠️  Web URL not found in output"
+            echo "Checking for deployment URL in different format..."
+            grep -i "https://" deploy_output.txt | head -5 || echo "No URLs found"
           fi
 
       - name: Health Check
