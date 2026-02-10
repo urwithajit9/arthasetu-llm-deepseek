@@ -105,7 +105,8 @@ class DeepSeekModel:
             max_model_len=3072,
             trust_remote_code=True,
             enforce_eager=False,
-            dtype="auto",
+            # dtype="auto",
+            dtype="half",
         )
 
         load_time = time.time() - start_time
@@ -355,7 +356,7 @@ def fastapi_app():
     async def root():
         """API info"""
         return {
-            "service": "ArthaSeetu Brain (Budget)",
+            "service": "ArthaSeetu LLM API",
             "version": "1.0.0",
             "gpu": GPU_CONFIG,
             "cost": "<$30/month",

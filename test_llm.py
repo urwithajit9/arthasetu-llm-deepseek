@@ -425,3 +425,24 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+"""
+curl -X POST "https://vidhiai-in--arthasetu-brain-fastapi-app.modal.run/v1/generate" \
+  -H "X-API-Key: rHhgfytr988676" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "What is 2+2?",
+    "max_tokens": 50
+  }' \
+  --verbose \
+  --no-buffer \
+  --max-time 180 \
+  -w "\n\n=== TIMING ===
+DNS: %{time_namelookup}s
+Connect: %{time_connect}s
+TLS: %{time_appconnect}s
+TTFB: %{time_starttransfer}s
+Total: %{time_total}s
+HTTP: %{http_code}\n"
+
+"""
