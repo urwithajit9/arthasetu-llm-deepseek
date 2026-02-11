@@ -11,7 +11,8 @@ from datetime import datetime
 # ============================================================================
 # CONFIGURATION - BUDGET OPTIMIZED
 # ============================================================================
-MODEL_ID = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"  # "qwen-3b"  # or "meta-llama/Llama-2-3b-chat-hf"
+# MODEL_ID = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"  # "qwen-3b"  # or "meta-llama/Llama-2-3b-chat-hf"
+MODEL_ID = "Qwen/Qwen-3B"  # "qwen-3b"  # or "meta-llama/Llama-2-3b-chat-hf"
 APP_NAME = "arthasetu-brain"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 
@@ -107,7 +108,7 @@ class DeepSeekModel:
             enforce_eager=True,
             # dtype="auto",
             dtype="half",
-            quantization="gptq",
+            quantization="bitsandbytes",
         )
 
         load_time = time.time() - start_time
