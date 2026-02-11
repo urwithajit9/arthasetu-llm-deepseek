@@ -108,7 +108,7 @@ class DeepSeekModel:
             enforce_eager=True,
             # dtype="auto",
             dtype="half",
-            quantization="bitsandbytes",
+            # quantization="bitsandbytes",
         )
 
         load_time = time.time() - start_time
