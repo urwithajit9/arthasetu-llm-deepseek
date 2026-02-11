@@ -12,7 +12,7 @@ from datetime import datetime
 # CONFIGURATION - BUDGET OPTIMIZED
 # ============================================================================
 # MODEL_ID = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"  # "qwen-3b"  # or "meta-llama/Llama-2-3b-chat-hf"
-MODEL_ID = "Qwen/Qwen2.5‑3B‑Instruct"  # "qwen-3b"  # or "meta-llama/Llama-2-3b-chat-hf"
+MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"  # "qwen-3b"  # or "meta-llama/Llama-2-3b-chat-hf"
 APP_NAME = "arthasetu-brain"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 
