@@ -39,7 +39,7 @@ image = (
     .env(
         {
             "HF_HUB_ENABLE_HF_TRANSFER": "1",
-            "VLLM_ATTENTION_BACKEND": "FLASHINFER",
+            # "VLLM_ATTENTION_BACKEND": "FLASHINFER",
             "TOKENIZERS_PARALLELISM": "false",
         }
     )
@@ -107,7 +107,7 @@ class DeepSeekModel:
             enforce_eager=True,
             # dtype="auto",
             dtype="half",
-            # enable_flashinfer=False,
+            enable_flashinfer=False,
         )
 
         load_time = time.time() - start_time
