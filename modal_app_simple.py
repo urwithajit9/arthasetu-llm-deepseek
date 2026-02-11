@@ -107,7 +107,7 @@ class DeepSeekModel:
             enforce_eager=True,
             # dtype="auto",
             dtype="half",
-            enable_flashinfer=False,
+
         )
 
         load_time = time.time() - start_time
